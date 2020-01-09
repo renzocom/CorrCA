@@ -1,3 +1,11 @@
+#
+# Renzo Comolatti (renzo.com@gmail.com)
+#
+# Class with Correlated Component Analysis (CorrCA) method based on
+# original matlab code from Parra's lab (https://www.parralab.org/corrca/).
+#
+# started 18/10/2019
+
 import numpy as np
 import scipy as sp
 
