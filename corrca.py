@@ -49,9 +49,16 @@ def fit(X, version=2, gamma=0, k=None):
         Rt = Rkl.reshape(N*N, D, D).sum(axis=0)
         Rb = (Rt - Rw) / (N-1)
 
-    Rw = sum(np.cov(X[n,...]) for n in range(N))
-    Rt = N**2 * np.cov(X.mean(axis=0))
+    # Rw = sum(np.cov(X[n,...]) for n in range(N))
+    # Rt = N**2 * np.cov(X.mean(axis=0))
+    # Rb = (Rt - Rw) / (N-1)
+
+    # fix for channel specific bad trial
+    temp = [np.cov(X[n,...]) for n in range(N)]
+    Rw = np.nansum(temp, axis=0)
+    Rt = N**2 * np.cov(np.nanmean(X, axis=0))
     Rb = (Rt - Rw) / (N-1)
+
 
     k = min(k, np.linalg.matrix_rank(Rw)) # handle rank deficient data.
     if k < D:
@@ -230,10 +237,10 @@ def circular_shift(X):
         surrogate[i, ...] = np.roll(X[i, ...], shifts[i], axis=1)
     return surrogate
 
-def calc_CCA(epochs, times, **par):
+def calc_corrca(epochs, times, **par):
     ini_ix = time2ix(times, par['response_window'][0])
     end_ix = time2ix(times, par['response_window'][1])
-    X = np.array(epochs)[:, :, ini_ix : end_ix]
+    X = np.array(epochs)[..., ini_ix : end_ix]
 
     W, ISC, A = fit(X, gamma=par['gamma'], k=par['K'])
 
@@ -243,23 +250,88 @@ def calc_CCA(epochs, times, **par):
         ISC_thr, ISC_null = stats(X, par['gamma'], par['K'], par['n_surrogates'], par['alpha'])
         n_components = sum(ISC > ISC_thr)
         W, ISC, A = W[:, :n_components], ISC[:n_components], A[:, :n_components]
-    # else:
-    #     ISC_cum = np.sumcum(100 * ISC/np.sum(ISC))
-    #     n_components = len(ISC_cum < par['max_var']) + 1
+        
     Y = transform(X, W)
-    Yfull = transform(epochs, W)
+    Yfull = transform(np.array(epochs), W)
     return W, ISC, A, Y, Yfull, ISC_thr
 
 def time2ix(times, t):
     return np.abs(times - t).argmin()
 
-def get_CCA_id(**par):
-    CCA_id = 'CCA_{}_{}'.format(par['response_window'][0], par['response_window'][1])
-    if par['stats']:
-        CCA_id += '_stats_K_{}_surr_{}_alpha_{}_gamma_{}'.format(par['K'], par['n_surrogates'], par['alpha'], par['gamma'])
+def get_id(params):
+    CCA_id = 'CorrCA_{}_{}'.format(params['response_window'][0], params['response_window'][1])
+    if params['stats']:
+        CCA_id += '_stats_K_{}_surr_{}_alpha_{}_gamma_{}'.format(params['K'], params['n_surrogates'], params['alpha'], params['gamma'])
     return CCA_id
 
 ################################################################################
+def plot_CCA(CCA, plot_trials=True, plot_evk=False, plot_signal=False, collapse=False, xlim=(-0.3,0.6), ylim=(-7,5), norm=True, trials_alpha=0.5, width=10):
+    times = CCA['times']
+    
+    Y = CorrCA.transform(CCA['epochs'], CCA['W'] )
+    Ymean = np.mean(Y, axis=0)
+
+    ISC, A, times, info = CCA['ISC'], CCA['A'], CCA['times'], CCA['info']
+    n_CC = Y.shape[-2]
+
+    n_rows = 2 if plot_signal else 1
+    height = 6 if plot_signal else 0
+    n_rows = 2 if plot_signal else 0
+    height += 12 if collapse else 2.5 * n_CC
+    n_rows += 2 if collapse else n_CC
+    n_cols = n_CC if collapse else 3
+    
+    fig = plt.figure(figsize=(width, height))
+
+    if plot_signal:
+        plot_evoked(CCA['evoked'], CCA['times'], CCA['info'], fig=fig, xlim=xlim, ylim=ylim, norm=norm)
+
+    if CCA['W'].shape[1]!=0:
+        if collapse:
+            gs = fig.add_gridspec(3, min(8, n_CC), top=0.49, hspace=0.5)
+            ax = fig.add_subplot(gs[:2, :])
+            if plot_evk:
+                ax.plot(times, CCA['evoked'].T, color='tab:grey', linewidth=0.3)
+
+            for n in range(n_CC):
+                ax.plot(times, Ymean[n, :], label = 'Component {} - ISC = {:.2f}'.format(n+1, CCA['ISC'][n]), linewidth=1.8)
+
+            ax.legend(loc='lower left')
+            ax.set_xlim(xlim)
+
+            for n in range(min(8, n_CC)):
+                vmax = np.max(np.abs(A))
+                ax2 = fig.add_subplot(gs[2, n])
+                im, cn = mne.viz.plot_topomap(A[:, n], pos=info, axes=ax2, show=False, vmax=vmax, vmin=-vmax)
+                ax2.set_title('Component {}'.format(n+1))
+
+                if n == n_CC-1:
+                    plt.colorbar(im, ax=ax2, fraction=0.04, pad=0.04)
+        else:
+            top = 0.49 if plot_signal else 0.88
+            gs = fig.add_gridspec(n_CC, 3, top=top, hspace=0.3)
+            for i in range(n_CC):
+                ax = fig.add_subplot(gs[i, :2])
+
+                if plot_trials:
+                    ax.plot(times, Y[:, i, :].T, linewidth=0.5, color='tab:blue', alpha=trials_alpha)
+
+                if plot_evk:
+                    ax.plot(times, CCA['evoked'].T, color='tab:grey', linewidth=0.3)
+
+                ax.plot(times, Ymean[i], color='black')
+
+                ax.set_xlim(xlim)
+                ax.set_title('Component {} - ISC = {:.2f}'.format(i+1, ISC[i]))
+
+                ax2 = fig.add_subplot(gs[i, 2])
+                im, cn = mne.viz.plot_topomap(A[:, i], pos=info, axes=ax2, show=False)
+
+        return fig
+
+
+
+#############################################
 
 def CorrCA_matlab(X, W=None, version=2, gamma=0, k=None):
     '''
