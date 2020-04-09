@@ -59,8 +59,11 @@ def fit(X, version=2, gamma=0, k=None):
     Rt = N**2 * np.cov(np.nanmean(X, axis=0))
     Rb = (Rt - Rw) / (N-1)
 
+    rank = np.linalg.matrix_rank(Rw)
+    if rank < D and gamma != 0:
+        print('Warning: data is rank deficient (gamma not used).')
 
-    k = min(k, np.linalg.matrix_rank(Rw)) # handle rank deficient data.
+    k = min(k, rank) # handle rank deficient data.
     if k < D:
         def regInv(R, k):
             '''PCA regularized inverse of square symmetric positive definite matrix R.'''
