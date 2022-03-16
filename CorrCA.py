@@ -7,7 +7,8 @@
 # started 18/10/2019
 
 import numpy as np
-import scipy as sp
+from scipy import linalg as sp_linalg
+from scipy import diag as sp_diag
 
 def fit(X, version=2, gamma=0, k=None):
     '''
@@ -69,23 +70,23 @@ def fit(X, version=2, gamma=0, k=None):
             '''PCA regularized inverse of square symmetric positive definite matrix R.'''
 
             U, S, Vh = np.linalg.svd(R)
-            invR = U[:, :k].dot(sp.diag(1 / S[:k])).dot(Vh[:k, :])
+            invR = U[:, :k].dot(sp_diag(1 / S[:k])).dot(Vh[:k, :])
             return invR
 
         invR = regInv(Rw, k)
-        ISC, W = sp.linalg.eig(invR.dot(Rb))
+        ISC, W = sp_linalg.eig(invR.dot(Rb))
         ISC, W = ISC[:k], W[:, :k]
 
     else:
         Rw_reg = (1-gamma) * Rw + gamma * Rw.diagonal().mean() * np.identity(D)
-        ISC, W = sp.linalg.eig(Rb, Rw_reg) # W is already sorted by eigenvalue and normalized
+        ISC, W = sp_linalg.eig(Rb, Rw_reg) # W is already sorted by eigenvalue and normalized
 
     ISC = np.diagonal(W.T.dot(Rb).dot(W)) / np.diag(W.T.dot(Rw).dot(W))
 
     ISC, W = np.real(ISC), np.real(W)
 
     if k==D:
-        A = Rw.dot(W).dot(sp.linalg.inv(W.T.dot(Rw).dot(W)))
+        A = Rw.dot(W).dot(sp_linalg.inv(W.T.dot(Rw).dot(W)))
     else:
         A = Rw.dot(W).dot(np.diag(1 / np.diag(W.T.dot(Rw).dot(W))))
 
@@ -171,7 +172,7 @@ def get_forwardmodel(X, W):
 
     k = np.linalg.matrix_rank(Rw)
     if k==D:
-        A = Rw.dot(W).dot(sp.linalg.inv(W.T.dot(Rw).dot(W)))
+        A = Rw.dot(W).dot(sp_linalg.inv(W.T.dot(Rw).dot(W)))
     else:
         A = Rw.dot(W).dot(np.diag(1 / np.diag(W.T.dot(Rw).dot(W))))
     return A
@@ -386,16 +387,16 @@ def CorrCA_matlab(X, W=None, version=2, gamma=0, k=None):
                 '''PCA regularized inverse of square symmetric positive definite matrix R.'''
 
                 U, S, Vh = np.linalg.svd(R)
-                invR = U[:, :k].dot(sp.diag(1 / S[:k])).dot(Vh[:k, :])
+                invR = U[:, :k].dot(sp_diag(1 / S[:k])).dot(Vh[:k, :])
                 return invR
 
             invR = regInv(Rw, k)
-            ISC, W = sp.linalg.eig(invR.dot(Rb))
+            ISC, W = sp_linalg.eig(invR.dot(Rb))
             ISC, W = ISC[:k], W[:, :k]
 
         else:
             Rw_reg = (1-gamma) * Rw + gamma * Rw.diagonal().mean() * np.identity(D)
-            ISC, W = sp.linalg.eig(Rb, Rw_reg) # W is already sorted by eigenvalue and normalized
+            ISC, W = sp_linalg.eig(Rb, Rw_reg) # W is already sorted by eigenvalue and normalized
 
     ISC = np.diagonal(W.T.dot(Rb).dot(W)) / np.diag(W.T.dot(Rw).dot(W))
 
@@ -406,7 +407,7 @@ def CorrCA_matlab(X, W=None, version=2, gamma=0, k=None):
         Y[n, ...] = W.T.dot(X[n, ...])
 
     if k==D:
-        A = Rw.dot(W).dot(sp.linalg.inv(W.T.dot(Rw).dot(W)))
+        A = Rw.dot(W).dot(sp_linalg.inv(W.T.dot(Rw).dot(W)))
     else:
         A = Rw.dot(W).dot(np.diag(1 / np.diag(W.T.dot(Rw).dot(W))))
 
