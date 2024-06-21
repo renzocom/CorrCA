@@ -1,9 +1,9 @@
 ## CorrCA: Correlated Component Analysis
 
-This repository contains the implementation of Correlated Component Analysis (CorrCA) based on the [original Matlab code](https://www.parralab.org/corrca/) from Parra's lab.
+This repository contains a implementation of Correlated Component Analysis (CorrCA) based on the [original Matlab code](https://www.parralab.org/corrca/) from Parra's lab.
 
 ## Usage
-Below is a simple example script demonstrating how to compute CorrCA on EEG evoked data.
+Example script demonstrating how to compute CorrCA on EEG evoked data.
 ```
 import numpy as np
 from corrca import CorrCA
@@ -20,3 +20,5 @@ params = {'baseline_window': (-0.3, -0.05), 'response_window': (0., 0.6), 'gamma
 # Perform CorrCA
 W, ISC, A, Y, Yfull, ISC_thr = CorrCA.calc_corrca(epochs, times, **params)
 ```
+
+For other use cases look inside `calc_corrca` to see how the main functions are called.
