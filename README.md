@@ -4,7 +4,7 @@ This repository contains the implementation of Correlated Component Analysis (Co
 
 ## Usage
 Below is a simple example script demonstrating how to compute CorrCA on EEG evoked data.
-'''
+```
 import numpy as np
 from corrca import CorrCA
 
@@ -19,4 +19,4 @@ params = {'baseline_window': (-0.3, -0.05), 'response_window': (0., 0.6), 'gamma
 
 # Perform CorrCA
 W, ISC, A, Y, Yfull, ISC_thr = CorrCA.calc_corrca(epochs, times, **params)
-'''
+```
