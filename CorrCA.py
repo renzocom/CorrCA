@@ -10,6 +10,66 @@ import numpy as np
 from scipy import linalg as sp_linalg
 from scipy import diag as sp_diag
 
+def calc_corrca(epochs, times, **par):
+        """
+    Calculate Correlated Component Analysis (CorrCA) on given epochs and times.
+
+    Parameters
+    ----------
+    epochs : ndarray of shape (n_epochs, n_channels, n_times)
+        Input signal data.
+    times : ndarray of shape (n_times,)
+        Array of time points corresponding to the epochs.
+    **par : dict
+        Additional parameters for the analysis. Expected keys are:
+        - 'response_window' : tuple of float
+            Start and end time for the response window.
+        - 'gamma' : float
+            Regularization parameter for the within-subject covariance matrix.
+        - 'K' : int
+            Number of components to retain.
+        - 'n_surrogates' : int
+            Number of surrogate datasets to use for statistical testing.
+        - 'alpha' : float
+            Significance level for statistical testing.
+        - 'stats' : bool
+            Whether to calculate statistics.
+
+    Returns
+    -------
+    W : ndarray of shape (n_channels, n_components)
+        Backward model (signal to components).
+    ISC : ndarray of shape (n_components,)
+        Inter-subject correlation values.
+    A : ndarray of shape (n_channels, n_components)
+        Forward model (components to signal).
+    Y : ndarray of shape (n_epochs, n_components, n_times)
+        Transformed signal within the response window.
+    Yfull : ndarray of shape (n_epochs, n_components, n_times)
+        Transformed signal for the entire epoch duration.
+    ISC_thr : float
+        Threshold for inter-subject correlation values based on surrogate data.
+    """
+    ini_ix = time2ix(times, par['response_window'][0])
+    end_ix = time2ix(times, par['response_window'][1])
+    X = np.array(epochs)[..., ini_ix : end_ix]
+
+    W, ISC, A = fit(X, gamma=par['gamma'], k=par['K'])
+
+    n_components = W.shape[1]
+    if stats:
+        print('Calculating statistics...')
+        ISC_thr, ISC_null = stats(X, par['gamma'], par['K'], par['n_surrogates'], par['alpha'])
+        n_components = sum(ISC > ISC_thr)
+        W, ISC, A = W[:, :n_components], ISC[:n_components], A[:, :n_components]
+        
+    Y = transform(X, W)
+    Yfull = transform(np.array(epochs), W)
+    return W, ISC, A, Y, Yfull, ISC_thr
+
+##################
+# MAIN FUNCTIONS #
+##################
 def fit(X, version=2, gamma=0, k=None):
     '''
     Correlated Component Analysis (CorrCA).
@@ -241,24 +301,6 @@ def circular_shift(X):
         surrogate[i, ...] = np.roll(X[i, ...], shifts[i], axis=1)
     return surrogate
 
-def calc_corrca(epochs, times, **par):
-    ini_ix = time2ix(times, par['response_window'][0])
-    end_ix = time2ix(times, par['response_window'][1])
-    X = np.array(epochs)[..., ini_ix : end_ix]
-
-    W, ISC, A = fit(X, gamma=par['gamma'], k=par['K'])
-
-    n_components = W.shape[1]
-    if stats:
-        print('Calculating statistics...')
-        ISC_thr, ISC_null = stats(X, par['gamma'], par['K'], par['n_surrogates'], par['alpha'])
-        n_components = sum(ISC > ISC_thr)
-        W, ISC, A = W[:, :n_components], ISC[:n_components], A[:, :n_components]
-        
-    Y = transform(X, W)
-    Yfull = transform(np.array(epochs), W)
-    return W, ISC, A, Y, Yfull, ISC_thr
-
 def time2ix(times, t):
     return np.abs(times - t).argmin()
 
@@ -268,7 +310,9 @@ def get_id(params):
         CCA_id += '_stats_K_{}_surr_{}_alpha_{}_gamma_{}'.format(params['K'], params['n_surrogates'], params['alpha'], params['gamma'])
     return CCA_id
 
-################################################################################
+############
+# PLOTTING #
+############
 def plot_CCA(CCA, plot_trials=True, plot_evk=False, plot_signal=False, collapse=False, xlim=(-0.3,0.6), ylim=(-7,5), norm=True, trials_alpha=0.5, width=10):
     times = CCA['times']
     
@@ -335,8 +379,7 @@ def plot_CCA(CCA, plot_trials=True, plot_evk=False, plot_signal=False, collapse=
 
 
 
-#############################################
-
+# Translation of original matlab function by Parra
 def CorrCA_matlab(X, W=None, version=2, gamma=0, k=None):
     '''
     Correlated Component Analysis.
