@@ -1,4 +1,4 @@
-## CorrCA: Correlated Component Analysis
+# CorrCA: Correlated Component Analysis
 
 This repository contains a implementation of Correlated Component Analysis (CorrCA) based on the [original Matlab code](https://www.parralab.org/corrca/) from Parra's lab.
 
