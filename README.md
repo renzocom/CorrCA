@@ -21,4 +21,4 @@ params = {'baseline_window': (-0.3, -0.05), 'response_window': (0., 0.6), 'gamma
 W, ISC, A, Y, Yfull, ISC_thr = CorrCA.calc_corrca(epochs, times, **params)
 ```
 
-For other use cases look inside `calc_corrca` to see how the main functions are called.
+For other use cases look inside `calc_corrca()` to see how the main functions are called.
